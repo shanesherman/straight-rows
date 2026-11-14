@@ -122,10 +122,12 @@ def _ramp_onset(resid: pd.Series, first: pd.Timestamp):
 
 def spoofing(sig, ds, th):
     out = []
+    # Storms raise every machine's guidance noise; demand more drift when the fleet is noisy.
+    fleet_noise = sig.xte.median(axis=1).rolling(601, center=True, min_periods=1).median()
     for t in TRACTORS:
         resid = sig.xte_resid[t]
         healthy = sig.excess[t] < th["spoof_max_excess_db"]
-        flag = (resid > th["spoof_resid_m"]) & sig.working[t] & healthy
+        flag = (resid > th["spoof_resid_m"] + fleet_noise) & sig.working[t] & healthy
         for start, end in intervals(flag, bridge_s=60, min_s=th["spoof_min_minutes"] * 60):
             onset, rate = _ramp_onset(resid, start)
             tail = resid.loc[end:end + pd.Timedelta("10min")]

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from . import context as ctx
+from .localize import localize
 from .constants import ACTION, TRACTORS
 
 
@@ -159,6 +160,23 @@ def jamming(c, ds, sig):
     else:
         checks.append(Check("rfi", False, 1.0, 0.2,
                             "No RFI report matches; reports are incomplete, so attribution rests on the telemetry"))
+    loc = localize(ds, sig, c.start, c.end, c.tractors)
+    where = ""
+    if loc and loc["rms_db"] < 1.5 and not loc["at_search_edge"]:
+        where = f" (estimated source {loc['lat']:.4f}, {loc['lon']:.4f} +/- {loc['uncertainty_km'] * 1000:.0f} m)"
+        agree = ""
+        if matches:
+            r = max(matches, key=lambda r: r["confidence"])
+            rep = next(x for x in ds.rfi if x["id"] == r["id"])
+            d = ctx.distance_km(loc["lat"], loc["lon"], rep["centerLat"], rep["centerLon"])
+            inside = d <= rep["semiMajor_km"]
+            agree = (f"; independently, it lies {d:.1f} km from the {r['id']} ellipse centre"
+                     f"{' (inside the ellipse)' if inside else ' (outside the ellipse)'}")
+        checks.append(Check("geolocated", True, 0.6, 0.0,
+                            f"Loss varies with each machine's range as it drives its rows: a free-space point-emitter "
+                            f"model (20 dB/decade) fits {loc['samples']} samples with {loc['rms_db']:.2f} dB RMS, placing "
+                            f"the source at {loc['lat']:.4f}, {loc['lon']:.4f} (+/- {loc['uncertainty_km'] * 1000:.0f} m), "
+                            f"{loc['range_km']:.1f} km at bearing {loc['bearing_deg']:.0f} deg from the field centre{agree}"))
     notes = [
         "IMPACT: " + ", ".join(
             f"{t} RTK_FIXED {m['rtk_before'][t]:.0%}->{m['rtk_during'][t]:.0%}, XTE {m['xte_m'][t]:.2f} m"
@@ -170,9 +188,9 @@ def jamming(c, ds, sig):
     return Detection(
         "JAMMING", c.start, c.end, c.tractors, checks, prior=0.0,
         summary=f"JAMMING on {names(c.tractors)}, {span(c)}: RF interference beyond what space weather explains.",
-        guidance=(f"Halt GNSS-guided work on {names(c.tractors)}; report the interference with times and positions "
-                  "to the regional RFI monitor/authorities; resume after C/N0 is back to nominal for 10 minutes."),
-        metrics={**m, **sda, "rfi": matches}, notes=notes,
+        guidance=(f"Halt GNSS-guided work on {names(c.tractors)}; report the interference{where} with times to the "
+                  "regional RFI monitor/authorities; resume after C/N0 is back to nominal for 10 minutes."),
+        metrics={**m, **sda, "rfi": matches, "localization": loc}, notes=notes,
     )
 
 

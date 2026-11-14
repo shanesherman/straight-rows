@@ -1,0 +1,257 @@
+{
+ "full_system": {
+  "score": 40.0,
+  "macro_f1": 1.0,
+  "timing": 1.0,
+  "false_positives": 0,
+  "matched": 12
+ },
+ "starter_baseline": {
+  "score": 20.15,
+  "macro_f1": 0.508,
+  "timing": 0.497,
+  "false_positives": 5,
+  "matched": 7
+ },
+ "farm_only_ablation": {
+  "score": 34.94,
+  "macro_f1": 0.848,
+  "timing": 0.917,
+  "false_positives": 5,
+  "matched": 11
+ },
+ "noise_injection": [
+  {
+   "cn0_sigma_db": 1,
+   "xte_sigma_m": 0,
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "cn0_sigma_db": 2,
+   "xte_sigma_m": 0,
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "cn0_sigma_db": 3,
+   "xte_sigma_m": 0,
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "cn0_sigma_db": 0,
+   "xte_sigma_m": 0.05,
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "cn0_sigma_db": 0,
+   "xte_sigma_m": 0.1,
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "cn0_sigma_db": 2,
+   "xte_sigma_m": 0.1,
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  }
+ ],
+ "feed_degradation": [
+  {
+   "perturbation": "S4 shifted -30 min",
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "perturbation": "S4 shifted -15 min",
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "perturbation": "S4 shifted +15 min",
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "perturbation": "S4 shifted +30 min",
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12
+  },
+  {
+   "perturbation": "all RFI reports removed",
+   "score": 40.0,
+   "macro_f1": 1.0,
+   "timing": 1.0,
+   "false_positives": 0,
+   "matched": 12,
+   "jamming_confidence": {
+    "2026-05-04 16:30:00+00:00": [
+     0.97,
+     0.94
+    ],
+    "2026-05-04 21:00:00+00:00": [
+     0.97,
+     0.94
+    ],
+    "2026-05-05 19:59:59+00:00": [
+     0.8,
+     0.8
+    ]
+   }
+  }
+ ],
+ "threshold_worst_case": {
+  "smooth_s": 40.0,
+  "working_speed_mps": 40.0,
+  "uniform_spread_db": 40.0,
+  "regional_window_s": 40.0,
+  "sw_depression_db": 40.0,
+  "sw_min_minutes": 40.0,
+  "s4_corroborate": 40.0,
+  "kp_storm": 40.0,
+  "jam_excess_db": 40.0,
+  "jam_min_minutes": 40.0,
+  "jam_bridge_s": 40.0,
+  "jam_member_db": 40.0,
+  "jam_member_rtk": 40.0,
+  "spoof_resid_m": 36.2,
+  "spoof_end_m": 40.0,
+  "spoof_min_minutes": 37.5,
+  "spoof_max_excess_db": 40.0,
+  "link_window_s": 40.0,
+  "link_bad_frac": 40.0,
+  "link_min_minutes": 40.0,
+  "drop_gap_db": 37.08,
+  "drop_window_s": 40.0,
+  "drop_rate": 40.0,
+  "fault_min_minutes": 40.0,
+  "mp_pre_s": 40.0,
+  "mp_post_s": 40.0,
+  "mp_gap_rise_db": 40.0,
+  "mp_headland_margin_deg": 40.0
+ },
+ "confidence_on_dev": [
+  {
+   "class": "EQUIPMENT_FAULT",
+   "start": "2026-05-04 12:00:14+00:00",
+   "tractors": [
+    "T2"
+   ],
+   "confidence": 0.94
+  },
+  {
+   "class": "SPOOFING",
+   "start": "2026-05-04 13:12:08+00:00",
+   "tractors": [
+    "T2"
+   ],
+   "confidence": 0.96
+  },
+  {
+   "class": "JAMMING",
+   "start": "2026-05-04 16:30:00+00:00",
+   "tractors": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "confidence": 0.97
+  },
+  {
+   "class": "JAMMING",
+   "start": "2026-05-04 21:00:00+00:00",
+   "tractors": [
+    "T1",
+    "T3"
+   ],
+   "confidence": 0.97
+  },
+  {
+   "class": "SPOOFING",
+   "start": "2026-05-05 00:30:04+00:00",
+   "tractors": [
+    "T1"
+   ],
+   "confidence": 0.96
+  },
+  {
+   "class": "EQUIPMENT_FAULT",
+   "start": "2026-05-05 02:00:01+00:00",
+   "tractors": [
+    "T1"
+   ],
+   "confidence": 0.94
+  },
+  {
+   "class": "SPACE_WEATHER",
+   "start": "2026-05-05 11:00:00+00:00",
+   "tractors": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "confidence": 0.97
+  },
+  {
+   "class": "SPACE_WEATHER",
+   "start": "2026-05-05 18:59:59+00:00",
+   "tractors": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "confidence": 0.95
+  },
+  {
+   "class": "JAMMING",
+   "start": "2026-05-05 19:59:59+00:00",
+   "tractors": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "confidence": 0.8
+  },
+  {
+   "class": "SPOOFING",
+   "start": "2026-05-05 21:31:53+00:00",
+   "tractors": [
+    "T3"
+   ],
+   "confidence": 0.94
+  }
+ ],
+ "runtime_s": 114.8
+}
