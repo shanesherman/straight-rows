@@ -45,7 +45,7 @@ Everything else:
 ```bash
 python -m straightrows evaluate --data data            # score the dev window with the official scorer
 python -m straightrows evaluate --data data --farm-only  # ablation without SDA feeds
-python -m straightrows report --data data              # out/report_eval.html, the operator report and demo
+python -m straightrows report --data data              # out/report_eval.html (a copy is committed at docs/report_eval.html)
 python -m straightrows report --data data --window dev # out/report_dev.html
 python -m straightrows robustness --data data          # out/robustness.json (~5 min)
 python -m pytest -q                                    # 17 tests (synthetic unit tests + dataset regression)
