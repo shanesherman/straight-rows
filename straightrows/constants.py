@@ -1,7 +1,7 @@
 """Identifiers, windows and tuned thresholds.
 
 Every threshold below was chosen by inspecting the 48 h development window
-(hours 0-48, 12 labelled episodes) and is exercised by tests/test_dev_eval.py.
+(hours 0-48, 12 labelled episodes) and is exercised by tests/test_dataset.py.
 The sensitivity study in straightrows/robustness.py perturbs each of them.
 """
 import pandas as pd

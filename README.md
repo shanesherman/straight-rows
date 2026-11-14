@@ -56,13 +56,13 @@ python -m pytest -q                                    # 17 tests (synthetic uni
 | # | Time (UTC, 2026-05-06) | Tractors | Cause | Action | Conf. | Key evidence |
 |---|---|---|---|---|---|---|
 | E01 | 01:00:02–02:00:00 | T1 | EQUIPMENT_FAULT (antenna) | SERVICE_MACHINE_OTHERS_CONTINUE | 0.94 | deep dropouts in 17 % of seconds on T1, 0 % on neighbours; mean C/N0 normal |
-| E02 | 02:12:00–02:54:00 | T1,T2,T3 | JAMMING | HALT_AND_REPORT | 0.97 | 10–12 dB step with S4 0.08 / Kp 2.5; RFI-003 27 min later; geolocated emitter falls inside RFI-003 ellipse |
+| E02 | 02:12:00–02:54:00 | T1,T2,T3 | JAMMING | HALT_AND_REPORT | 0.97 | 9.6–12.3 dB excess loss (step up to 10.9 dB in 60 s) with S4 0.08 / Kp 2.5; RFI-003 27 min later; geolocated emitter falls inside RFI-003 ellipse |
 | E03 | 13:00:00–15:59:57 | T1,T2,T3 | SPACE_WEATHER | HALT_OR_DEGRADED_MODE | 0.97 | uniform 10.1 dB loss (spread 0.3 dB); S4 0.46 predicts 10.2 dB; Kp 6.8 at 12:00Z |
 | E04 | 16:30:01–17:12:00 | T1 | SPOOFING | HALT_CROSSCHECK_AND_REPORT | 0.96 | XTE ramps 0.19 m/min to 8.1 m while C/N0 and RTK fix match neighbours |
-| E05 | 18:30:00–19:00:00 | T1,T2,T3 | JAMMING | HALT_AND_REPORT | 0.97 | 6–12 dB step, S4 quiet; **no RFI report**, but telemetry alone geolocates a source 0.6 km NW |
+| E05 | 18:30:00–19:00:00 | T1,T2,T3 | JAMMING | HALT_AND_REPORT | 0.97 | 5.7–11.9 dB excess loss (step up to 16.8 dB), S4 quiet; **no RFI report**, but telemetry alone geolocates a source 0.6 km NW |
 | E06 | 19:48:02–20:29:25 | T2 | EQUIPMENT_FAULT (correction link) | SERVICE_MACHINE_OTHERS_CONTINUE | 0.94 | T2 link down 30 % of the time, neighbours 0 %; signal strength normal |
 | E07 | 21:48:01–22:24:00 | T3 | SPOOFING | HALT_CROSSCHECK_AND_REPORT | 0.96 | XTE ramps to 5.1 m with healthy C/N0 and RTK |
-| MP | 486 passes across working hours (00:00–03:00 and 11:00–24:00) | each single tractor | MULTIPATH | CONTINUE_FALSE_ALARM | 0.82–0.91 | ~17 s min-C/N0 dip at every north-headland turn, XTE < 0.3 m |
+| MP | 486 passes across working hours (00:00–03:00 and 11:00–24:00) | each single tractor | MULTIPATH | CONTINUE_FALSE_ALARM | 0.82–0.91 | ~17 s min-C/N0 dip at every north-headland turn; in clear conditions peak XTE has median 0.27 m (294 of 296 passes under 0.5 m); passes during the storm, jamming or spoofing inherit that elevated XTE, fail the 'harmless' check and score 0.82 |
 
 Each detection's `evidence` list in `submission.json` reads like this (E05, abbreviated):
 
@@ -93,8 +93,8 @@ OPERATOR: Halt GNSS-guided work on T1,T2,T3; report the interference (estimated 
         ▼
  detectors.py   one detector per physical mechanism, independent so causes can overlap
    SPACE_WEATHER  regional > 3 dB while working
-   JAMMING        excess > 3 dB, abrupt; affected = excess ≥ 4.5 dB or lost RTK
-   SPOOFING       XTE above cleanest neighbour + storm noise, with healthy C/N0; onset by ramp back-extrapolation
+   JAMMING        excess > 3 dB for ≥ 3 min; affected = excess ≥ 4.5 dB or lost RTK; abruptness scored as evidence
+   SPOOFING       XTE above cleanest neighbour + storm noise, own C/N0 within 2 dB of regional; onset by ramp fit
    EQUIPMENT      one machine's correction-link loss or deep-dropout rate vs its neighbours
    MULTIPATH      ~17 s min-C/N0 rise at each north-headland turn
         │
@@ -121,12 +121,13 @@ separate JAMMING detection. Removing the SDA feed costs 3.4 points on the dev di
 
 ### 2. Mechanism-specific detectors
 
-- **Jamming:** excess loss that appears in one step, not gradually as scintillation builds with S4. A tractor
+- **Jamming:** excess loss > 3 dB sustained for ≥ 3 min while working. Whether it appeared in one step (a
+  switched-on emitter) rather than building gradually is scored as a confidence check, not a gate. A tractor
   counts as affected if its excess is ≥ 4.5 dB or it lost an RTK fix it held before. That matches TRN-04, where
   T2 lost about 3 dB, kept RTK, and is labelled unaffected.
 - **Spoofing:** the guidance monitor's cross-track error drifts away from the cleanest neighbour while the
-  machine's C/N0, satellite count and RTK fix remain as healthy as its neighbours'. The receiver is confidently
-  wrong. Storms raise everyone's guidance noise, so the drift threshold adds the fleet's median XTE. Onset is
+  machine's own C/N0 stays within 2 dB of the regional level (the detection gate). That RTK fix also stays as
+  good as the neighbours' is scored as evidence: the receiver is confidently wrong. Storms raise everyone's guidance noise, so the drift threshold adds the fleet's median XTE. Onset is
   found by fitting the linear ramp and extrapolating back to zero. Reported lat/lon is not displaced in this
   dataset, so position is not used as a spoofing cue (see limitations).
 - **Equipment fault:** always judged relative to the neighbours in the same field, which experience the same
@@ -194,6 +195,9 @@ scorer on the development window.
 | S4 shifted +30 min | 40.00 | 12/12 | 0 |
 | all RFI reports removed | 40.00 | 12/12 | 0 |
 
+Noise is drawn independently for mean and minimum C/N0, so the mean-minus-min gap that drives the multipath
+and antenna-fault detectors is perturbed too (σ=3 dB on each gives about 4.2 dB on the gap).
+
 **Threshold sensitivity.** Each of the 28 thresholds in `constants.py` was scaled independently by ×0.7, ×0.85, ×1.15 and ×1.3 (112 runs). 27 of 28 keep 40/40 at every setting.
  The exceptions:
 
@@ -202,6 +206,11 @@ scorer on the development window.
 | `drop_gap_db` | ×1.3 | 37.08 | 11/12 | 0 |
 
 **RFI dependence.** Removing every RFI report leaves all classifications unchanged. Dev jamming confidence stays at 0.97, 0.97 and 0.88: the telemetry checks alone saturate the 0.97 cap, and the report only shifts the log-odds underneath it. TRN-05 never had a report. RFI reports are corroboration, not a dependency.
+
+**Not covered by the sweep.** Secondary constants are written inline next to the logic that uses them: the
+4 dB S4 acceptance band, the ±30 min S4 timing band, gap-bridging durations, the 0.02 peer link-loss cutoff, and
+the confidence-check cutoffs in `evidence.py`. They are not part of the sweep. Of these, the S4 timing band is
+stress-tested by the ±30 min S4 shift rows above.
 
 **Antenna-fault margin.** The one threshold with limited headroom is `drop_gap_db` (15 dB). At 19.5 dB, the antenna fault's dropouts (weakest satellite 20–30 dB below the mean) start to fall under the bar and TRN-09 is missed. Lowering it is safe.
 
@@ -240,8 +249,10 @@ headland" notice, as the HTML report does.
   at once, the fault would look regional.
 - **Geolocation assumes one stationary emitter and free-space loss.** A moving or directional jammer would fit
   poorly; the RMS is reported so a poor fit is visible.
-- **Retrospective processing.** Centred smoothing windows look up to 30 s (multipath and spoofing), 15 min
-  (regional level) and 5 min (fault rates) ahead. Online use would add that much latency.
+- **Retrospective processing.** Several steps look ahead: centred smoothing (30 s), the multipath baseline
+  (2 min after the turn), fault-rate and fleet-noise windows (~5 min), spoofing ramp fit and end search (4–10 min),
+  the regional level (15 min) and the S4 acceptance band (±30 min). An online version would need causal windows
+  and would trade onset accuracy for latency; the guide allows retrospective processing.
 
 ## Additional data that would improve attribution
 
@@ -260,7 +271,7 @@ headland" notice, as the HTML report does.
 
 ```
 straightrows/          the package (python -m straightrows ...)
-  constants.py         classes, actions, windows, every threshold in one place
+  constants.py         classes, actions, windows and the 28 tuned detection thresholds
   data.py              feed loading
   signals.py           conditioning, S4 response fit, regional/excess decomposition
   detectors.py         one detector per mechanism
@@ -277,6 +288,7 @@ scripts/get_data.py    dataset download + checksum
 tests/                 synthetic unit tests and dataset regression tests
 docs/DEMO_SCRIPT.md    five-minute demo plan and Q&A preparation
 submission.json        the submitted results
+.github/workflows/     CI: clean-machine download, tests, exact regeneration of submission.json
 ```
 
 All challenge data is synthetic and unclassified. Code is released under the Apache License 2.0; vendored files

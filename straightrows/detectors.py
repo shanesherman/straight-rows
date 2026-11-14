@@ -60,7 +60,7 @@ def space_weather(sig, ds, th):
     out = []
     for start, end in intervals(depressed & any_working, bridge_s=600, min_s=th["sw_min_minutes"] * 60):
         work = _window(sig.working, start, end).mean()
-        tractors = [t for t in TRACTORS if work[t] >= 0.5]
+        tractors = [t for t in TRACTORS if work[t] >= 0.5] or [str(work.idxmax())]
         began = sig.regional.loc[:start - SECOND]
         began = began[began <= th["sw_depression_db"]]
         degradation_onset = began.index[-1] + SECOND if len(began) else start

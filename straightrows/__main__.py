@@ -48,9 +48,10 @@ def cmd_report(args):
     ds = data.load(args.data)
     start, end = _windows(args.window)
     decisions, sig = pipeline.analyse(ds, start, end)
-    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    report.write(Path(args.output), ds, sig, decisions, start, end, args.window)
-    print(f"Wrote {args.output}")
+    output = Path(args.output or f"out/report_{args.window}.html")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    report.write(output, ds, sig, decisions, start, end, args.window)
+    print(f"Wrote {output}")
 
 
 def cmd_robustness(args):
@@ -82,7 +83,7 @@ def main(argv=None):
     p = sub.add_parser("report", help="write the self-contained HTML operator report")
     p.add_argument("--data", default="data")
     p.add_argument("--window", choices=["eval", "dev"], default="eval")
-    p.add_argument("--output", default="out/report_eval.html")
+    p.add_argument("--output", help="default out/report_<window>.html")
     p.set_defaults(func=cmd_report)
     p = sub.add_parser("robustness", help="threshold sensitivity, ablations and noise injection on dev")
     p.add_argument("--data", default="data")

@@ -2814,7 +2814,7 @@
     "SUPPORTS: C/N0 fell together on T1,T2,T3 to 34.9 dB-Hz (10.1 dB below nominal 45); median fleet spread 0.30 dB, so the loss is regional, not machine- or location-specific",
     "SUPPORTS: Regional S4 0.46 at 13:00Z (mean 0.45 during) predicts 10.2 dB loss from the dev-fitted S4 response; observed 10.1 dB",
     "SUPPORTS: Kp peaked at 6.8 at 12:00Z within 6 h before/during (G2 storm level); Dst minimum -42 nT",
-    "SUPPORTS: No tractor lost more than 0.0 dB beyond the regional level, ruling out a local jammer or a single faulty antenna as the main cause",
+    "SUPPORTS: Every tractor stayed within 0.0 dB of the regional level, ruling out a local jammer or a single faulty antenna as the main cause",
     "SUPPORTS: Guidance impact: RTK_FIXED share 0%, mean cross-track error 0.22 m",
     "SUPPORTS: ADV-2026-118 (2026-05-05 07:00Z): Severe geomagnetic storming in progress (G4-G5). Degraded single- and dual-frequency GNSS accuracy expected at mid and high latitudes for 24-48 h.",
     "OPERATOR: Halt precision work or drop to degraded mode (wider pass-to-pass tolerance, no RTK-dependent seeding/spraying) for all machines; resume when C/N0 recovers above 42 dB-Hz and S4 falls below 0.3."

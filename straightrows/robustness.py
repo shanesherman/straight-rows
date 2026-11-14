@@ -69,9 +69,10 @@ def with_noise(ds, cn0_sigma=0.0, xte_sigma=0.0, seed=7):
     noisy = copy.copy(ds)
     noisy.wide = dict(ds.wide)
     if cn0_sigma:
-        noise = rng.normal(0, cn0_sigma, ds.wide["cn0"].shape)
-        noisy.wide["cn0"] = ds.wide["cn0"] + noise
-        noisy.wide["min_cn0"] = ds.wide["min_cn0"] + noise
+        # independent noise on mean and minimum C/N0, so the mean-minus-min gap used by the
+        # multipath and antenna-fault detectors is perturbed too
+        noisy.wide["cn0"] = ds.wide["cn0"] + rng.normal(0, cn0_sigma, ds.wide["cn0"].shape)
+        noisy.wide["min_cn0"] = ds.wide["min_cn0"] + rng.normal(0, cn0_sigma, ds.wide["min_cn0"].shape)
     if xte_sigma:
         noisy.wide["xte"] = ds.wide["xte"] + rng.normal(0, xte_sigma, ds.wide["xte"].shape)
     return noisy

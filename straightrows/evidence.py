@@ -13,7 +13,7 @@ import pandas as pd
 
 from . import context as ctx
 from .localize import localize
-from .constants import ACTION, TRACTORS
+from .constants import ACTION, THRESHOLDS, TRACTORS
 
 
 @dataclass
@@ -81,7 +81,7 @@ def names(tractors):
 # --------------------------------------------------------------------------- per class
 def space_weather(c, ds, sig):
     m, sda = c.metrics, ctx.space_context(ds, c.start, c.end)
-    max_excess = max(abs(v) for v in m["excess_db"].values())
+    max_excess = max((abs(v) for v in m["excess_db"].values()), default=0.0)
     rtk = sig.rtk.loc[c.start:c.end, c.tractors].mean().mean()
     xte = sig.xte.loc[c.start:c.end, c.tractors].mean().mean()
     advisories = ctx.advisories_in_effect(ds, c.start, c.end, "SPACE_WEATHER")
@@ -94,11 +94,11 @@ def space_weather(c, ds, sig):
         Check("s4_explains", abs(m["regional_db"] - m["s4_expected_db"]) < 3.0, 1.2, 1.0,
               f"Regional S4 {sda['s4_at_onset']:.2f} at {hm(sda['s4_at_onset_ts'])} (mean {sda['s4_mean']:.2f} during) "
               f"predicts {m['s4_expected_db']:.1f} dB loss from the dev-fitted S4 response; observed {m['regional_db']:.1f} dB"),
-        Check("kp", sda["kp_max_6h"] >= 5.0, 0.6, 0.3,
+        Check("kp", sda["kp_max_6h"] >= THRESHOLDS["kp_storm"], 0.6, 0.3,
               f"Kp peaked at {sda['kp_max_6h']:.1f} at {hm(sda['kp_max_ts'])} within 6 h before/during "
               f"(G{min(5, max(0, int(sda['kp_max_6h']) - 4))} storm level); Dst minimum {sda['dst_min']:.0f} nT"),
         Check("no_local_excess", max_excess < 2.0, 0.6, 0.6,
-              f"No tractor lost more than {max_excess:.1f} dB beyond the regional level, ruling out a local jammer "
+              f"Every tractor stayed within {max_excess:.1f} dB of the regional level, ruling out a local jammer "
               "or a single faulty antenna as the main cause"),
         Check("impact", rtk < 0.5, 0.3, 0.3,
               f"Guidance impact: RTK_FIXED share {rtk:.0%}, mean cross-track error {xte:.2f} m"),
@@ -143,7 +143,7 @@ def jamming(c, ds, sig):
                             f"A storm is in progress (S4 {sda['s4_at_onset']:.2f}, regional loss {m['regional_db']:.1f} dB), "
                             f"but the loss exceeds the storm level by {top:.1f} dB; reported as a separate concurrent cause"))
     else:
-        checks.append(Check("space_quiet", sda["s4_at_onset"] < 0.25 and sda["kp_at_onset"] < 5, 0.6, 0.4,
+        checks.append(Check("space_quiet", sda["s4_at_onset"] < THRESHOLDS["s4_corroborate"] and sda["kp_at_onset"] < THRESHOLDS["kp_storm"], 0.6, 0.4,
                             f"Space weather quiet: S4 {sda['s4_at_onset']:.2f} at {hm(sda['s4_at_onset_ts'])}, "
                             f"Kp {sda['kp_at_onset']:.1f}; scintillation cannot explain the loss"))
     if m["spread_db"] >= 2.0:
@@ -256,7 +256,7 @@ def equipment(c, ds, sig):
                   "scintillation, which lower every satellite"),
         ]
         what, fix = "antenna/cable fault", "inspect the GNSS antenna, connector and cable"
-    if sda["s4_mean"] >= 0.25:
+    if sda["s4_mean"] >= THRESHOLDS["s4_corroborate"]:
         checks.append(Check("storm_free", False, 0.0, 0.3,
                             f"Concurrent scintillation (S4 {sda['s4_mean']:.2f}); fault judged relative to neighbours"))
     return Detection(
