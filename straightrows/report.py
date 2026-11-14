@@ -2,15 +2,18 @@
 import base64
 import html
 import io
+import math
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.dates as mdates  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.patches import Circle, Ellipse  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from .constants import NOMINAL_CN0, TRACTORS  # noqa: E402
+from .context import KM_PER_DEG_LAT  # noqa: E402
 
 TRACTOR_COLOR = {"T1": "#2a78d6", "T2": "#eb6834", "T3": "#1baf7a"}
 CLASS_COLOR = {"SPACE_WEATHER": "#6250d6", "JAMMING": "#e34948", "SPOOFING": "#eda100",
@@ -126,6 +129,46 @@ def episode_figure(ds, sig, d):
     return _png(fig)
 
 
+def jammer_map(ds, d):
+    loc = d.metrics.get("localization")
+    if not loc:
+        return ""
+    k_lon = 111.32 * math.cos(math.radians(loc["fleet_lat"]))
+
+    def to_xy(lat, lon):
+        return (lon - loc["fleet_lon"]) * k_lon, (lat - loc["fleet_lat"]) * KM_PER_DEG_LAT
+
+    fig, ax = plt.subplots(figsize=(5.2, 5.2))
+    for t in TRACTORS:
+        lat = ds.wide["lat"][t].loc[d.start:d.end].iloc[::10]
+        lon = ds.wide["lon"][t].loc[d.start:d.end].iloc[::10]
+        x, y = to_xy(lat.to_numpy(), lon.to_numpy())
+        ax.plot(x, y, ".", color=TRACTOR_COLOR[t], ms=3, label=f"{t} track")
+    for r in d.metrics.get("rfi", []):
+        rep = next(x for x in ds.rfi if x["id"] == r["id"])
+        cx, cy = to_xy(rep["centerLat"], rep["centerLon"])
+        ax.add_patch(Ellipse((cx, cy), 2 * rep["semiMajor_km"], 2 * rep["semiMinor_km"], fill=False,
+                             ls="--", color=MUTED, lw=1.2))
+        ax.plot(cx, cy, "+", color=MUTED, ms=10)
+        ax.annotate(f"{rep['id']} centre (orientation not given)", (cx, cy), xytext=(6, -12),
+                    textcoords="offset points", fontsize=8, color=MUTED)
+    ex, ey = to_xy(loc["lat"], loc["lon"])
+    ax.add_patch(Circle((ex, ey), loc["uncertainty_km"], color=CLASS_COLOR["JAMMING"], alpha=0.15, lw=0))
+    ax.plot(ex, ey, "*", color=CLASS_COLOR["JAMMING"], ms=14, label="estimated emitter")
+    ax.set_aspect("equal")
+    span = max([1.5, abs(ex) + 0.8, abs(ey) + 0.8] + [
+        max(abs(c) for c in to_xy(x["centerLat"], x["centerLon"])) + x["semiMajor_km"] + 0.2
+        for x in ds.rfi if x["id"] in {r["id"] for r in d.metrics.get("rfi", [])}])
+    ax.set_xlim(-span, span)
+    ax.set_ylim(-span, span)
+    ax.set_xlabel("east of field centre (km)")
+    ax.set_ylabel("north of field centre (km)")
+    ax.legend(fontsize=8, loc="upper left")
+    ax.set_title(f"Emitter geolocation (fit RMS {loc['rms_db']:.2f} dB)", loc="left", color=INK)
+    fig.tight_layout()
+    return f'<img alt="jammer geolocation map" style="max-width:480px" src="data:image/png;base64,{_png(fig)}">'
+
+
 CSS = """
 :root{--bg:#fcfcfb;--ink:#0b0b0b;--muted:#52514e;--line:#e4e3df;--card:#ffffff;--ok:#0b6b2e;--warn:#8a5a00}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#1a1a19;--ink:#f0efec;--muted:#c3c2b7;--line:#3a3936;--card:#232321;--ok:#7bd88f;--warn:#f0c060}}
@@ -176,6 +219,7 @@ def write(path, ds, sig, decisions, start, end, window):
         f'<div class="card" id="E{i:02d}"><h3>E{i:02d} &middot; {_chip(d.cls)} &middot; {", ".join(d.tractors)} '
         f'&middot; confidence {d.confidence:.2f}</h3><p>{html.escape(d.summary)}</p>'
         f'<img alt="{d.cls} episode chart" src="data:image/png;base64,{episode_figure(ds, sig, d)}">'
+        f"{jammer_map(ds, d) if d.cls == 'JAMMING' else ''}"
         f"{_evidence_html(d)}<div class=\"op\"><b>Recommended action <code>{d.action}</code>.</b> "
         f"{html.escape(d.guidance)}</div></div>"
         for i, d in enumerate(major, 1))
