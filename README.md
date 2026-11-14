@@ -40,6 +40,12 @@ python -m straightrows submit --data data --output submission.json \
 python -m straightrows validate submission.json        # the official validator, vendored
 ```
 
+`submit` also writes `submission.provenance.json`: SHA-256 of the code and of every input file, the thresholds,
+the fitted S4 response, and library versions. If two runs report the same hashes, they used the same code and the same inputs.
+
+```bash
+```
+
 Everything else:
 
 ```bash
@@ -48,7 +54,8 @@ python -m straightrows evaluate --data data --farm-only  # ablation without SDA 
 python -m straightrows report --data data              # out/report_eval.html (a copy is committed at docs/report_eval.html)
 python -m straightrows report --data data --window dev # out/report_dev.html
 python -m straightrows robustness --data data          # out/robustness.json (~5 min)
-python -m pytest -q                                    # 17 tests (synthetic unit tests + dataset regression)
+python -m straightrows audit --data data               # RFI-feed trust score + single-tractor geolocation
+python -m pytest -q                                    # 20 tests (synthetic unit tests + dataset regression)
 ```
 
 ## Evaluation-window results (submitted)
@@ -226,6 +233,31 @@ stress-tested by the ±30 min S4 shift rows above.
   produced 19 false spoofing alerts, all inside the Kp 9 storm where every machine's XTE is about 1 m. The
   adaptive threshold removed them.
 
+## Source audit: scoring the data feeds
+
+Every RFI report is checked against the fleet's own telemetry over the full 72 hours (`python -m straightrows audit`):
+
+| Report | Verdict | Evidence |
+|---|---|---|
+| RFI-001 | Corroborated | jamming 2026-05-04 16:30Z; emitter estimate 0.53 km from report centre, inside the ellipse |
+| RFI-002 | Corroborated | jamming 2026-05-04 21:00Z; estimate 0.57 km from centre, inside |
+| RFI-003 | Corroborated | jamming 2026-05-06 02:12Z; estimate 1.77 km from centre, inside |
+| RFI-004 | Discounted | uniform loss explained by S4: the storm, not an emitter (the report itself says "may be storm-related") |
+| (none) | Missed by feed | jamming 2026-05-05 19:59Z and 2026-05-06 18:30Z, each geolocated from telemetry alone |
+
+**Feed trust: precision 0.75 (3 of 4 reports corroborated), recall 0.60 (3 of 5 detected jamming events reported).**
+Run continuously, the same bookkeeping would give every provider a reliability score earned against independent
+evidence.
+
+## Every tractor is a sensor
+
+The audit also geolocates each jamming episode again from every subset of the affected tractors. A **single
+tractor**, just driving its rows, lands within **149 m** of the full-fleet estimate in all 14 tractor-episodes, and
+inside the RFI report's ellipse in 8 of 8 reported cases. The row pattern alone supplies enough geometry. That
+suggests every GNSS-guided machine already in the field is an RF-interference sensor that needs no new hardware.
+These are synthetic data, generated with clean free-space propagation; with real-world noise, each additional
+machine would become an independent cross-check rather than a redundant one.
+
 ## Multipath reporting choice
 
 Every north-headland turn (about 162 per machine per working day) shows the same ~17 s reflection. Only one
@@ -280,6 +312,7 @@ straightrows/          the package (python -m straightrows ...)
   evidence.py          checks, confidence, evidence text, operational events
   pipeline.py          end-to-end analysis, submission writer, dev evaluation
   report.py            self-contained HTML operator report
+  audit.py             RFI-feed trust score and single-tractor geolocation study
   robustness.py        assurance study
   official_scorer.py   official diagnostic scorer (vendored, unmodified)
   official_validator.py official submission validator (vendored, unmodified)
@@ -288,6 +321,7 @@ scripts/get_data.py    dataset download + checksum
 tests/                 synthetic unit tests and dataset regression tests
 docs/DEMO_SCRIPT.md    five-minute demo plan and Q&A preparation
 submission.json        the submitted results
+submission.provenance.json  code and input hashes, thresholds, S4 response behind submission.json
 .github/workflows/     CI: clean-machine download, tests, exact regeneration of submission.json
 ```
 

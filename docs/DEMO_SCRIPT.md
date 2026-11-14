@@ -63,7 +63,7 @@ python -m straightrows validate /tmp/check.json
 diff <(python -c "import json;print(json.load(open('/tmp/check.json'))['detections'])") \
      <(python -c "import json;print(json.load(open('submission.json'))['detections'])") && echo IDENTICAL
 python -m straightrows evaluate --data data     # 12/12 dev episodes, 40.00/40
-python -m pytest -q                              # 17 tests
+python -m pytest -q                              # 20 tests
 ```
 
 ## 4:45 – 5:00 · Close

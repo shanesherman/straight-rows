@@ -14,9 +14,11 @@ def _windows(name):
 
 def cmd_submit(args):
     ds = data.load(args.data)
-    decisions, _ = pipeline.analyse(ds, EVAL_START, EVAL_END)
+    decisions, sig = pipeline.analyse(ds, EVAL_START, EVAL_END)
     sub = pipeline.submission(decisions, args.github_handle, args.repo_url, args.display_name)
     Path(args.output).write_text(json.dumps(sub, indent=1) + "\n")
+    side = Path(args.output).with_suffix(".provenance.json")
+    side.write_text(json.dumps(pipeline.provenance(args.data, decisions, sig), indent=1) + "\n")
     counts = {}
     for d in decisions:
         counts[d.cls] = counts.get(d.cls, 0) + 1
@@ -60,6 +62,27 @@ def cmd_robustness(args):
     robustness.run(ds, Path(args.output))
 
 
+def cmd_audit(args):
+    from . import audit
+    result = audit.run(data.load(args.data))
+    trust = result["source_audit"]["trust"]
+    for r in result["source_audit"]["reports"]:
+        extra = ""
+        if "estimate_inside_ellipse" in r:
+            extra = f"  emitter estimate {r['estimate_km_from_centre']} km from centre, inside={r['estimate_inside_ellipse']}"
+        print(f"{r['source']:8} {r['verdict']:15} {r.get('episode', r.get('reason', ''))}{extra}")
+    for m in result["source_audit"]["unreported"]:
+        print(f"{'(none)':8} {m['verdict']:15} {m['episode']} source ~{m['estimated_source']}")
+    print(f"RFI feed trust: precision {trust['precision']} ({trust['corroborated']}/{trust['reports']} reports corroborated), "
+          f"recall {trust['recall']} ({trust['jamming_reported']}/{trust['jamming_detected']} jamming events reported)")
+    single = [r for r in result["fleet_sensor_study"] if r["machines"] == 1]
+    print(f"Single-tractor geolocation: worst {max(r['km_from_full_fleet'] for r in single) * 1000:.0f} m from the "
+          f"full-fleet estimate over {len(single)} tractor-episodes; inside the RFI ellipse in "
+          f"{sum(r.get('inside_report_ellipse', False) for r in single)}/{sum('report' in r for r in single)} reported cases")
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.output).write_text(json.dumps(result, indent=1, default=str))
+
+
 def cmd_validate(args):
     from .official_validator import main
     sys.exit(main(args.path))
@@ -89,6 +112,10 @@ def main(argv=None):
     p.add_argument("--data", default="data")
     p.add_argument("--output", default="out/robustness.json")
     p.set_defaults(func=cmd_robustness)
+    p = sub.add_parser("audit", help="score the RFI feed against the fleet; geolocate from every tractor subset")
+    p.add_argument("--data", default="data")
+    p.add_argument("--output", default="out/audit.json")
+    p.set_defaults(func=cmd_audit)
     p = sub.add_parser("validate", help="run the official submission validator")
     p.add_argument("path")
     p.set_defaults(func=cmd_validate)

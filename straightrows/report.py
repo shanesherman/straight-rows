@@ -208,6 +208,43 @@ def _chip(cls):
     return f'<span class="chip" style="background:{CLASS_COLOR[cls]}">{cls}</span>'
 
 
+def audit_html(ds):
+    from . import audit
+    result = audit.run(ds)
+    sa, study = result["source_audit"], result["fleet_sensor_study"]
+    rows = "".join(
+        f"<tr><td>{r['source']}</td><td>{html.escape(r['ts'][:16])}Z</td><td><b>{r['verdict']}</b></td>"
+        f"<td>{html.escape(r.get('episode', r.get('reason', '')))}"
+        + (f"; emitter estimate {r['estimate_km_from_centre']} km from the report centre, "
+           f"{'inside' if r['estimate_inside_ellipse'] else 'outside'} its ellipse" if "estimate_inside_ellipse" in r else "")
+        + "</td></tr>" for r in sa["reports"])
+    rows += "".join(
+        f"<tr><td>(none)</td><td>&ndash;</td><td><b>{m['verdict']}</b></td><td>{m['episode']} on "
+        f"{', '.join(m['tractors'])}; estimated source {m['estimated_source']}</td></tr>" for m in sa["unreported"])
+    t = sa["trust"]
+    single = [r for r in study if r["machines"] == 1]
+    worst = max(r["km_from_full_fleet"] for r in single) * 1000
+    inside = sum(r.get("inside_report_ellipse", False) for r in single)
+    reported = sum("report" in r for r in single)
+    study_rows = "".join(
+        f"<tr><td>{r['episode']}</td><td>{r['tractors']}</td><td>{r['fit_rms_db']:.2f} dB</td>"
+        f"<td>{r['km_from_full_fleet'] * 1000:.0f} m</td><td>{r.get('report', '&ndash;')}"
+        f"{'' if 'report' not in r else (' inside' if r['inside_report_ellipse'] else ' outside')}</td></tr>"
+        for r in study)
+    return f"""<h2>Source audit: how far can the RFI feed be trusted?</h2>
+<div class="card"><p>Every RFI report over the full 72 hours, checked against the fleet\u2019s own telemetry.
+<b>Feed precision {t['precision']:.2f}</b> ({t['corroborated']} of {t['reports']} reports corroborated) and
+<b>recall {t['recall']:.2f}</b> ({t['jamming_reported']} of {t['jamming_detected']} detected jamming events were reported).</p>
+<div class="wrap"><table><tr><th>Report</th><th>Issued</th><th>Verdict</th><th>Evidence</th></tr>{rows}</table></div></div>
+<h2>Every tractor is a sensor</h2>
+<div class="card"><p>Each jamming episode was geolocated again from every subset of the affected tractors. A single machine,
+just driving its rows, landed within <b>{worst:.0f} m</b> of the full-fleet estimate in every case, and inside the RFI
+report\u2019s ellipse in {inside} of {reported} reported cases. Distances of 0 m are below the 50 m search grid.
+On synthetic data; real-world noise would make each extra machine an independent cross-check.</p>
+<details><summary>All {len(study)} subset fits</summary><div class="wrap"><table>
+<tr><th>Episode</th><th>Tractors used</th><th>Fit RMS</th><th>From full fleet</th><th>RFI ellipse</th></tr>{study_rows}</table></div></details></div>"""
+
+
 def write(path, ds, sig, decisions, start, end, window):
     major = [d for d in decisions if d.cls != "MULTIPATH"]
     mp = [d for d in decisions if d.cls == "MULTIPATH"]
@@ -242,6 +279,7 @@ def write(path, ds, sig, decisions, start, end, window):
 <tr><th>ID</th><th>Time (UTC)</th><th>Tractors</th><th>Cause</th><th>Action</th><th>Confidence</th></tr>{rows}</table></div>
 <h2>Timeline</h2><img alt="timeline of detections, C/N0 and space weather" src="data:image/png;base64,{timeline(ds, sig, decisions, start, end)}">
 <h2>Episode evidence</h2>{cards}
+{audit_html(ds)}
 <h2>Recurring headland multipath</h2>
 <div class="card"><p>Every turn at the north headland produces a ~17 s reflection: the weakest satellite drops several dB while
 mean C/N0, RTK fix and guidance stay healthy. Passes reported: {", ".join(f"{t} {n}" for t, n in mp_counts.items())}.
